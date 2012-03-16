@@ -1,11 +1,11 @@
 Summary:	Gitolite setup used by PLD
 Name:		pld-gitolite
-Version:	0.1
-Release:	0.2
+Version:	0.2
+Release:	1
 License:	GPL v2
 Group:		Development/Building
 Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
-# Source0-md5:	ac759e1ab4d95fd154a30c3c5254de40
+# Source0-md5:	5b22b8bb558261367ed18028934afb6a
 Source1:	gitolite.conf
 Source2:	gitolite.rc
 BuildRequires:	rpmbuild(macros) >= 1.202
@@ -38,7 +38,6 @@ cp -p %{SOURCE1} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/conf
 cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite.rc
 cp -a hooks/* $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/hooks/common
 cp -a adc $RPM_BUILD_ROOT/home/services/gitolite/
-touch $RPM_BUILD_ROOT/home/services/gitolite//projects.list
 
 
 %clean
@@ -75,7 +74,8 @@ fi
 %attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/post-receive
 %dir /home/services/gitolite/.gitolite/hooks/common/post-receive.d
 %attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/post-receive.d/mailnotification
-
+/home/services/gitolite/.gitolite/hooks/common/post-receive.python.d
 %dir /home/services/gitolite/adc
 %dir /home/services/gitolite/adc/bin
 %attr(744,gitolite,gitolite) /home/services/gitolite/adc/bin/create
+/home/services/gitolite/adc/bin/adc.common-functions
