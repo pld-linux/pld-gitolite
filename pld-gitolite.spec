@@ -1,13 +1,15 @@
 Summary:	Gitolite setup used by PLD
 Name:		pld-gitolite
-Version:	0.3
+Version:	0.4
 Release:	1
 License:	GPL v2
 Group:		Development/Building
 Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
-# Source0-md5:	7450fb7b27662a40b52d8ed813dc7879
+# Source0-md5:	1ea2745235e16c29126227b6d9115474
 Source1:	gitolite.conf
 Source2:	gitolite.rc
+Source3:	git.conf
+Source4:	gitweb.conf
 BuildRequires:	rpmbuild(macros) >= 1.202
 Requires:	gitolite
 Provides:	group(gitolite)
@@ -36,8 +38,11 @@ install -d $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/{conf,hooks/common}
 
 cp -p %{SOURCE1} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/conf
 cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite.rc
+cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/gitolite/.gitconfig
 cp -a hooks/* $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/hooks/common
 cp -a adc $RPM_BUILD_ROOT/home/services/gitolite/
+
+install -D %{SOURCE4} $RPM_BUILD_ROOT/%{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
 
 
 %clean
@@ -61,6 +66,7 @@ fi
 
 %dir /home/services/gitolite
 %dir /home/services/gitolite/repositories
+%config(noreplace) %verify(not md5 mtime size) /home/services/gitolite/.gitconfig
 
 %dir /home/services/gitolite/.gitolite
 %config(noreplace) %verify(not md5 mtime size) /home/services/gitolite/.gitolite.rc
@@ -80,3 +86,5 @@ fi
 %dir /home/services/gitolite/adc/bin
 %attr(744,gitolite,gitolite) /home/services/gitolite/adc/bin/create
 /home/services/gitolite/adc/bin/adc.common-functions
+
+%attr(644,root,root) %{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
