@@ -1,3 +1,5 @@
+# TODO:
+# - real webapps integration
 Summary:	Gitolite setup used by PLD
 Name:		pld-gitolite
 Version:	0.4
@@ -40,10 +42,9 @@ cp -p %{SOURCE1} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/conf
 cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite.rc
 cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/gitolite/.gitconfig
 cp -a hooks/* $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/hooks/common
-cp -a adc $RPM_BUILD_ROOT/home/services/gitolite/
+cp -a adc $RPM_BUILD_ROOT/home/services/gitolite
 
-install -D %{SOURCE4} $RPM_BUILD_ROOT/%{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
-
+install -D %{SOURCE4} $RPM_BUILD_ROOT%{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -60,6 +61,7 @@ fi
 
 %files
 %defattr(644,root,root,755)
+%attr(640,root,root) %config(noreplace) %verify(not md5 mtime size) %{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
 
 # all files owned by gitolite:gitolite
 %defattr(644,gitolite,gitolite,755)
@@ -86,5 +88,3 @@ fi
 %dir /home/services/gitolite/adc/bin
 %attr(744,gitolite,gitolite) /home/services/gitolite/adc/bin/create
 /home/services/gitolite/adc/bin/adc.common-functions
-
-%attr(644,root,root) %{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
