@@ -2,18 +2,19 @@
 # - real webapps integration
 Summary:	Gitolite setup used by PLD
 Name:		pld-gitolite
-Version:	0.4
+Version:	0.6
 Release:	1
 License:	GPL v2
 Group:		Development/Building
 Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
-# Source0-md5:	1ea2745235e16c29126227b6d9115474
+# Source0-md5:	bf460d4f33c346a7276f996a2859ddf0
 Source1:	gitolite.conf
 Source2:	gitolite.rc
 Source3:	git.conf
 Source4:	gitweb.conf
 BuildRequires:	rpmbuild(macros) >= 1.202
 Requires:	gitolite
+Requires:	perl-RPC-XML
 Provides:	group(gitolite)
 Provides:	user(gitolite)
 Requires(postun):	/usr/sbin/groupdel
@@ -22,6 +23,8 @@ Requires(pre):	/usr/sbin/groupadd
 Requires(postun):	/usr/sbin/userdel
 Requires(pre):	/bin/id
 Requires(pre):	/usr/sbin/useradd
+Suggests:	git-core-daemon
+Suggests:	git-core-gitweb
 BuildArch:	noarch
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
@@ -84,6 +87,8 @@ fi
 %attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/post-receive.d/mailnotification
 %attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/post-receive.d/setdescription.sh
 /home/services/gitolite/.gitolite/hooks/common/post-receive.python.d
+%dir /home/services/gitolite/.gitolite/hooks/common/post-receive.d/misc
+%attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/post-receive.d/misc/ciabot.pl
 %dir /home/services/gitolite/adc
 %dir /home/services/gitolite/adc/bin
 %attr(744,gitolite,gitolite) /home/services/gitolite/adc/bin/create
