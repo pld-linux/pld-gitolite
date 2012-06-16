@@ -2,17 +2,19 @@
 # - real webapps integration
 Summary:	Gitolite setup used by PLD
 Name:		pld-gitolite
-Version:	0.6
-Release:	1
+Version:	0.8
+Release:	0.1
 License:	GPL v2
 Group:		Development/Building
 Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
-# Source0-md5:	bf460d4f33c346a7276f996a2859ddf0
+# Source0-md5:	dbd360677ca97e9893547c5d5e31fde6
 Source1:	gitolite.conf
 Source2:	gitolite.rc
 Source3:	git.conf
 Source4:	gitweb.conf
+Source5:	pld-developers
 BuildRequires:	rpmbuild(macros) >= 1.202
+Requires:	git-core-slug
 Requires:	gitolite
 Requires:	perl-RPC-XML
 Provides:	group(gitolite)
@@ -41,7 +43,7 @@ rm -rf $RPM_BUILD_ROOT
 install -d $RPM_BUILD_ROOT/home/services/gitolite/repositories
 install -d $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/{conf,hooks/common}
 
-cp -p %{SOURCE1} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/conf
+cp -p %{SOURCE1} %{SOURCE5} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/conf
 cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite.rc
 cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/gitolite/.gitconfig
 cp -a hooks/* $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/hooks/common
@@ -64,7 +66,7 @@ fi
 
 %files
 %defattr(644,root,root,755)
-%attr(640,root,root) %config(noreplace) %verify(not md5 mtime size) %{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
+%attr(640,root,http) %config(noreplace) %verify(not md5 mtime size) %{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
 
 # all files owned by gitolite:gitolite
 %defattr(644,gitolite,gitolite,755)
@@ -78,6 +80,7 @@ fi
 
 %dir /home/services/gitolite/.gitolite/conf
 %config(noreplace) %verify(not md5 mtime size) /home/services/gitolite/.gitolite/conf/gitolite.conf
+%config(noreplace) %verify(not md5 mtime size) /home/services/gitolite/.gitolite/conf/pld-developers
 
 %dir /home/services/gitolite/.gitolite/hooks
 %dir /home/services/gitolite/.gitolite/hooks/common
@@ -92,4 +95,5 @@ fi
 %dir /home/services/gitolite/adc
 %dir /home/services/gitolite/adc/bin
 %attr(744,gitolite,gitolite) /home/services/gitolite/adc/bin/create
+%attr(744,gitolite,gitolite) /home/services/gitolite/adc/bin/sskm
 /home/services/gitolite/adc/bin/adc.common-functions
