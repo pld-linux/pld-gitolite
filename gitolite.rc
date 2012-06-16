@@ -35,7 +35,7 @@ $REPO_UMASK = 0027;
 # variables with an efficiency/performance impact
 # ------------------------------------------------------------------------------
 $GL_BIG_CONFIG = 1;
-$GL_NO_DAEMON_NO_GITWEB = 0;
+$GL_NO_DAEMON_NO_GITWEB = 1;
 # $GL_NICE_VALUE = 0;
 # $BIG_INFO_CAP = 20;
 
