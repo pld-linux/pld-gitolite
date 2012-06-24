@@ -43,7 +43,6 @@ mv draenog-gitolite-scripts-*/* .
 %install
 rm -rf $RPM_BUILD_ROOT
 # create directories if necessary
-install -d $RPM_BUILD_ROOT/home/services/%gituser/repositories
 install -d $RPM_BUILD_ROOT/home/services/%gituser/.gitolite/{conf,hooks/common}
 
 cp -p %{SOURCE1} %{SOURCE5} $RPM_BUILD_ROOT/home/services/%gituser/.gitolite/conf
@@ -75,7 +74,6 @@ fi
 %defattr(644,%gituser,%gituser,755)
 
 %dir /home/services/%gituser
-%dir /home/services/%gituser/repositories
 %config(noreplace) %verify(not md5 mtime size) /home/services/%gituser/.gitconfig
 
 %dir /home/services/%gituser/.gitolite
