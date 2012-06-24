@@ -1,5 +1,8 @@
 # TODO:
 # - real webapps integration
+
+%define gituser   git
+
 Summary:	Gitolite setup used by PLD
 Name:		pld-gitolite
 Version:	0.8
@@ -17,8 +20,8 @@ BuildRequires:	rpmbuild(macros) >= 1.202
 Requires:	git-core-slug
 Requires:	gitolite
 Requires:	perl-RPC-XML
-Provides:	group(gitolite)
-Provides:	user(gitolite)
+Provides:	group(%gituser)
+Provides:	user(%gituser)
 Requires(postun):	/usr/sbin/groupdel
 Requires(pre):	/usr/bin/getgid
 Requires(pre):	/usr/sbin/groupadd
@@ -40,14 +43,14 @@ mv draenog-gitolite-scripts-*/* .
 %install
 rm -rf $RPM_BUILD_ROOT
 # create directories if necessary
-install -d $RPM_BUILD_ROOT/home/services/gitolite/repositories
-install -d $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/{conf,hooks/common}
+install -d $RPM_BUILD_ROOT/home/services/%gituser/repositories
+install -d $RPM_BUILD_ROOT/home/services/%gituser/.gitolite/{conf,hooks/common}
 
-cp -p %{SOURCE1} %{SOURCE5} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/conf
-cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/gitolite/.gitolite.rc
-cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/gitolite/.gitconfig
-cp -a hooks/* $RPM_BUILD_ROOT/home/services/gitolite/.gitolite/hooks/common
-cp -a adc $RPM_BUILD_ROOT/home/services/gitolite
+cp -p %{SOURCE1} %{SOURCE5} $RPM_BUILD_ROOT/home/services/%gituser/.gitolite/conf
+cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/%gituser/.gitolite.rc
+cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/%gituser/.gitconfig
+cp -a hooks/* $RPM_BUILD_ROOT/home/services/%gituser/.gitolite/hooks/common
+cp -a adc $RPM_BUILD_ROOT/home/services/%gituser
 
 install -D %{SOURCE4} $RPM_BUILD_ROOT%{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
 
@@ -55,45 +58,45 @@ install -D %{SOURCE4} $RPM_BUILD_ROOT%{_sysconfdir}/webapps/gitweb/gitweb-pld.co
 rm -rf $RPM_BUILD_ROOT
 
 %pre
-%groupadd -g 264 gitolite
-%useradd -u 264 -d /home/services/gitolite -s /bin/sh -g gitolite -c "PLD Gitolite User" gitolite
+%groupadd -g 264 %gituser
+%useradd -u 264 -d /home/services/%gituser -s /bin/sh -g %gituser -c "PLD Gitolite User" %gituser
 
 %postun
 if [ "$1" = "0" ]; then
-	%userremove gitolite
-	%groupremove gitolite
+	%userremove %gituser
+	%groupremove %gituser
 fi
 
 %files
 %defattr(644,root,root,755)
 %attr(640,root,http) %config(noreplace) %verify(not md5 mtime size) %{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
 
-# all files owned by gitolite:gitolite
-%defattr(644,gitolite,gitolite,755)
+# all files owned by %gituser:%gituser
+%defattr(644,%gituser,%gituser,755)
 
-%dir /home/services/gitolite
-%dir /home/services/gitolite/repositories
-%config(noreplace) %verify(not md5 mtime size) /home/services/gitolite/.gitconfig
+%dir /home/services/%gituser
+%dir /home/services/%gituser/repositories
+%config(noreplace) %verify(not md5 mtime size) /home/services/%gituser/.gitconfig
 
-%dir /home/services/gitolite/.gitolite
-%config(noreplace) %verify(not md5 mtime size) /home/services/gitolite/.gitolite.rc
+%dir /home/services/%gituser/.gitolite
+%config(noreplace) %verify(not md5 mtime size) /home/services/%gituser/.gitolite.rc
 
-%dir /home/services/gitolite/.gitolite/conf
-%config(noreplace) %verify(not md5 mtime size) /home/services/gitolite/.gitolite/conf/gitolite.conf
-%config(noreplace) %verify(not md5 mtime size) /home/services/gitolite/.gitolite/conf/pld-developers
+%dir /home/services/%gituser/.gitolite/conf
+%config(noreplace) %verify(not md5 mtime size) /home/services/%gituser/.gitolite/conf/gitolite.conf
+%config(noreplace) %verify(not md5 mtime size) /home/services/%gituser/.gitolite/conf/pld-developers
 
-%dir /home/services/gitolite/.gitolite/hooks
-%dir /home/services/gitolite/.gitolite/hooks/common
-%attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/update.secondary
-%attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/post-receive
-%dir /home/services/gitolite/.gitolite/hooks/common/post-receive.d
-%attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/post-receive.d/mailnotification
-%attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/post-receive.d/setdescription.sh
-/home/services/gitolite/.gitolite/hooks/common/post-receive.python.d
-%dir /home/services/gitolite/.gitolite/hooks/common/post-receive.d/misc
-%attr(744,gitolite,gitolite) /home/services/gitolite/.gitolite/hooks/common/post-receive.d/misc/ciabot.pl
-%dir /home/services/gitolite/adc
-%dir /home/services/gitolite/adc/bin
-%attr(744,gitolite,gitolite) /home/services/gitolite/adc/bin/create
-%attr(744,gitolite,gitolite) /home/services/gitolite/adc/bin/sskm
-/home/services/gitolite/adc/bin/adc.common-functions
+%dir /home/services/%gituser/.gitolite/hooks
+%dir /home/services/%gituser/.gitolite/hooks/common
+%attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/update.secondary
+%attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/post-receive
+%dir /home/services/%gituser/.gitolite/hooks/common/post-receive.d
+%attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/post-receive.d/mailnotification
+%attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/post-receive.d/setdescription.sh
+/home/services/%gituser/.gitolite/hooks/common/post-receive.python.d
+%dir /home/services/%gituser/.gitolite/hooks/common/post-receive.d/misc
+%attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/post-receive.d/misc/ciabot.pl
+%dir /home/services/%gituser/adc
+%dir /home/services/%gituser/adc/bin
+%attr(744,%gituser,%gituser) /home/services/%gituser/adc/bin/create
+%attr(744,%gituser,%gituser) /home/services/%gituser/adc/bin/sskm
+/home/services/%gituser/adc/bin/adc.common-functions
