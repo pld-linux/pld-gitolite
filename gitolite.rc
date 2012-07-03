@@ -83,6 +83,10 @@ $GL_LOGT="$GL_ADMINDIR/logs/gitolite-%y-%m.log";
 # ------------------------------------------------------------------------------
 $REPO_BASE="repositories";
 
+# variables for PLD scripts
+$ENV{WATCHDIR}="watchdir";
+$ENV{ATTIC}="$REPO_BASE/../Attic";
+
 # ------------------------------------------------------------------------------
 # DO NOT TOUCH ANY THING AFTER THIS LINE
 # ------------------------------------------------------------------------------
