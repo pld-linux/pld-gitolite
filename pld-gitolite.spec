@@ -5,12 +5,12 @@
 
 Summary:	Gitolite setup used by PLD
 Name:		pld-gitolite
-Version:	0.8
+Version:	0.10
 Release:	0.1
 License:	GPL v2
 Group:		Development/Building
 Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
-# Source0-md5:	dbd360677ca97e9893547c5d5e31fde6
+# Source0-md5:	12e83f1da1e88cb22700287842667c0b
 Source1:	gitolite.conf
 Source2:	gitolite.rc
 Source3:	git.conf
@@ -93,6 +93,10 @@ fi
 /home/services/%gituser/.gitolite/hooks/common/post-receive.python.d
 %dir /home/services/%gituser/.gitolite/hooks/common/post-receive.d/misc
 %attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/post-receive.d/misc/ciabot.pl
+%dir /home/services/%gituser/.gitolite/hooks/common/post-receive.d/gnome
+%attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/post-receive.d/gnome/gnome-post-receive-email
+/home/services/%gituser/.gitolite/hooks/common/post-receive.d/gnome/*.py
+/home/services/%gituser/.gitolite/hooks/common/post-receive.d/gnome-post-receive-email
 %dir /home/services/%gituser/adc
 %dir /home/services/%gituser/adc/bin
 %attr(744,%gituser,%gituser) /home/services/%gituser/adc/bin/create
