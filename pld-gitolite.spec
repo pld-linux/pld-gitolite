@@ -5,12 +5,12 @@
 
 Summary:	Gitolite setup used by PLD
 Name:		pld-gitolite
-Version:	0.10
+Version:	0.11
 Release:	0.1
 License:	GPL v2
 Group:		Development/Building
 Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
-# Source0-md5:	12e83f1da1e88cb22700287842667c0b
+# Source0-md5:	44f58773a1353c7a78b2627bee082377
 Source1:	gitolite.conf
 Source2:	gitolite.rc
 Source3:	git.conf
@@ -88,7 +88,6 @@ fi
 %attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/update.secondary
 %attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/post-receive
 %dir /home/services/%gituser/.gitolite/hooks/common/post-receive.d
-%attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/post-receive.d/mailnotification
 %attr(744,%gituser,%gituser) /home/services/%gituser/.gitolite/hooks/common/post-receive.d/setdescription.sh
 /home/services/%gituser/.gitolite/hooks/common/post-receive.python.d
 %dir /home/services/%gituser/.gitolite/hooks/common/post-receive.d/misc
