@@ -1,8 +1,4 @@
-# TODO:
-# - real webapps integration
-
 %define gituser   git
-
 Summary:	Gitolite setup used by PLD
 Name:		pld-gitolite
 Version:	0.11
@@ -52,6 +48,7 @@ cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/%gituser/.gitconfig
 cp -a hooks/* $RPM_BUILD_ROOT/home/services/%gituser/.gitolite/hooks/common
 cp -a adc $RPM_BUILD_ROOT/home/services/%gituser
 
+# install additional config for gitweb package
 install -D %{SOURCE4} $RPM_BUILD_ROOT%{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
 
 %clean
