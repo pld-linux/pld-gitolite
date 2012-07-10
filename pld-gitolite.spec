@@ -16,6 +16,7 @@ Source2:	gitolite.rc
 Source3:	git.conf
 Source4:	gitweb.conf
 Source5:	pld-developers
+BuildRequires:	rpm-pythonprov
 BuildRequires:	rpmbuild(macros) >= 1.202
 Requires:	git-core-slug
 Requires:	gitolite
@@ -34,7 +35,7 @@ BuildArch:	noarch
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
-Gitolite setup used by PLD Linux Distribution
+Gitolite setup used by PLD Linux Distribution.
 
 %prep
 %setup -qc
