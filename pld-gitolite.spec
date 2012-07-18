@@ -2,19 +2,21 @@
 Summary:	Gitolite setup used by PLD
 Summary(pl.UTF-8):	Konfiguracja Gitolite wykorzystywana przez PLD
 Name:		pld-gitolite
-Version:	0.11
-Release:	0.1
+Version:	0.12
+Release:	1
 License:	GPL v2
 Group:		Development/Building
-Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
-# Source0-md5:	44f58773a1353c7a78b2627bee082377
+Source0:	https://github.com/draenog/gitolite-scripts/tarball/v0.12/gitolite-scripts.tar.gz
+# Source0-md5:	6f18ecdc8e8484f254ed2e77bc9ed5dd
 Source1:	gitolite.conf
 Source2:	gitolite.rc
 Source3:	git.conf
 Source4:	gitweb.conf
 Source5:	pld-developers
+Source6:	crontab
 BuildRequires:	rpm-pythonprov
 BuildRequires:	rpmbuild(macros) >= 1.202
+Requires:	crondaemon
 Requires:	git-core-slug
 Requires:	gitolite
 Requires:	perl-RPC-XML
@@ -45,12 +47,16 @@ mv draenog-gitolite-scripts-*/* .
 rm -rf $RPM_BUILD_ROOT
 # create directories if necessary
 install -d $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/{conf,hooks/common}
+install -d $RPM_BUILD_ROOT/home/services/%{gituser}/bin
 
 cp -p %{SOURCE1} %{SOURCE5} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/conf
 cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite.rc
 cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitconfig
 cp -a hooks/* $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/hooks/common
 cp -a adc $RPM_BUILD_ROOT/home/services/%{gituser}
+cp -a cron/* $RPM_BUILD_ROOT/home/services/%{gituser}/bin
+
+install -Dp %{SOURCE6} $RPM_BUILD_ROOT/etc/cron.d/git
 
 # install additional config for gitweb package
 install -D %{SOURCE4} $RPM_BUILD_ROOT%{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
@@ -71,6 +77,7 @@ fi
 %files
 %defattr(644,root,root,755)
 %attr(640,root,http) %config(noreplace) %verify(not md5 mtime size) %{_sysconfdir}/webapps/gitweb/gitweb-pld.conf
+%config(noreplace) %verify(not md5 mtime size) /etc/cron.d/git
 
 # all files owned by %{gituser}:%{gituser}
 %defattr(644,%{gituser},%{gituser},755)
@@ -91,6 +98,7 @@ fi
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/.gitolite/hooks/common/post-receive
 %dir /home/services/%{gituser}/.gitolite/hooks/common/post-receive.d
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/.gitolite/hooks/common/post-receive.d/setdescription.sh
+%attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/.gitolite/hooks/common/post-receive.d/github.sh
 /home/services/%{gituser}/.gitolite/hooks/common/post-receive.python.d
 %dir /home/services/%{gituser}/.gitolite/hooks/common/post-receive.d/misc
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/.gitolite/hooks/common/post-receive.d/misc/ciabot.pl
@@ -103,3 +111,5 @@ fi
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/adc/bin/create
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/adc/bin/sskm
 /home/services/%{gituser}/adc/bin/adc.common-functions
+%dir /home/services/%{gituser}/bin
+%attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/bin/specscommit.sh

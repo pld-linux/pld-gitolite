@@ -1,0 +1,5 @@
+SHELL=/bin/sh
+MAILTO=gitadmin@pld-linux.org
+
+*/5 * * * *	git $HOME/bin/specscommit.sh > /dev/null
+8 * * * *	git git --git-dir=/cvs/root/gitolite/repositories/SPECS.git/ gc --prune=now > /dev/null
