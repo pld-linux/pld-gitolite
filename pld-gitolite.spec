@@ -2,12 +2,12 @@
 Summary:	Gitolite setup used by PLD
 Summary(pl.UTF-8):	Konfiguracja Gitolite wykorzystywana przez PLD
 Name:		pld-gitolite
-Version:	0.12
+Version:	0.13
 Release:	1
 License:	GPL v2
 Group:		Development/Building
-Source0:	https://github.com/draenog/gitolite-scripts/tarball/v0.12/gitolite-scripts.tar.gz
-# Source0-md5:	6f18ecdc8e8484f254ed2e77bc9ed5dd
+Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
+# Source0-md5:	edceb3d9517f6e134c10c23c13927680
 Source1:	gitolite.conf
 Source2:	gitolite.rc
 Source3:	git.conf
@@ -20,6 +20,7 @@ Requires:	crondaemon
 Requires:	git-core-slug
 Requires:	gitolite
 Requires:	perl-RPC-XML
+Requires:	python3-requests
 Provides:	group(%{gituser})
 Provides:	user(%{gituser})
 Requires(postun):	/usr/sbin/groupdel
@@ -54,7 +55,7 @@ cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite.rc
 cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitconfig
 cp -a hooks/* $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/hooks/common
 cp -a adc $RPM_BUILD_ROOT/home/services/%{gituser}
-cp -a cron/* $RPM_BUILD_ROOT/home/services/%{gituser}/bin
+cp -a bin/* $RPM_BUILD_ROOT/home/services/%{gituser}/bin
 
 install -Dp %{SOURCE6} $RPM_BUILD_ROOT/etc/cron.d/git
 
@@ -113,3 +114,4 @@ fi
 /home/services/%{gituser}/adc/bin/adc.common-functions
 %dir /home/services/%{gituser}/bin
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/bin/specscommit.sh
+%attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/bin/pldgithub.py
