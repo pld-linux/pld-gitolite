@@ -2,12 +2,12 @@
 Summary:	Gitolite setup used by PLD
 Summary(pl.UTF-8):	Konfiguracja Gitolite wykorzystywana przez PLD
 Name:		pld-gitolite
-Version:	0.13
+Version:	0.13.1
 Release:	1
 License:	GPL v2
 Group:		Development/Building
 Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
-# Source0-md5:	edceb3d9517f6e134c10c23c13927680
+# Source0-md5:	506efdf6ad5d16fe5905d76c8ef2fe51
 Source1:	gitolite.conf
 Source2:	gitolite.rc
 Source3:	git.conf
