@@ -48,7 +48,7 @@ mv draenog-gitolite-scripts-*/* .
 rm -rf $RPM_BUILD_ROOT
 # create directories if necessary
 install -d $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/{conf,hooks/common}
-install -d $RPM_BUILD_ROOT/home/services/%{gituser}/bin
+install -d $RPM_BUILD_ROOT/home/services/%{gituser}/{bin,configs}
 
 cp -p %{SOURCE1} %{SOURCE5} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/conf
 cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite.rc
@@ -56,6 +56,8 @@ cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitconfig
 cp -a hooks/* $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/hooks/common
 cp -a adc $RPM_BUILD_ROOT/home/services/%{gituser}
 cp -a bin/* $RPM_BUILD_ROOT/home/services/%{gituser}/bin
+
+echo '*.spec' > $RPM_BUILD_ROOT/home/services/%{gituser}/configs/difforder
 
 install -Dp %{SOURCE6} $RPM_BUILD_ROOT/etc/cron.d/git
 
@@ -115,3 +117,5 @@ fi
 %dir /home/services/%{gituser}/bin
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/bin/specscommit.sh
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/bin/pldgithub.py
+%dir /home/services/%{gituser}/configs
+%config(noreplace) %verify(not md5 mtime size) /home/services/%{gituser}/configs/difforder
