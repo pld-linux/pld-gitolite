@@ -1,0 +1,5 @@
+requester=git
+default_key=
+dist=
+priority=4
+build_mode=test
