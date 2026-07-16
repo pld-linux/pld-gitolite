@@ -3,7 +3,7 @@ Summary:	Gitolite setup used by PLD
 Summary(pl.UTF-8):	Konfiguracja Gitolite wykorzystywana przez PLD
 Name:		pld-gitolite
 Version:	0.13.4
-Release:	2
+Release:	3
 License:	GPL v2
 Group:		Development/Building
 Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
@@ -14,6 +14,7 @@ Source3:	git.conf
 Source4:	gitweb.conf
 Source5:	pld-developers
 Source6:	crontab
+Patch0:		python.patch
 BuildRequires:	rpm-pythonprov
 BuildRequires:	rpmbuild(macros) >= 1.202
 Requires:	crondaemon
@@ -43,6 +44,7 @@ Konfiguracja Gitolite wykorzystywana przez PLD.
 %prep
 %setup -qc
 mv draenog-gitolite-scripts-*/* .
+%patch -P0 -p1
 
 %install
 rm -rf $RPM_BUILD_ROOT
