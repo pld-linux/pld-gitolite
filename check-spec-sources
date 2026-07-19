@@ -116,7 +116,7 @@ def basename_of(path):
 
 def add_parametric_macro(name):
     """Define a parametric macro that consumes its arguments and expands to nothing."""
-    rpm.expandMacro(f"%define {name}() %{{nil}}")
+    rpm.expandMacro(f"%global {name}() %{{nil}}")
 
 
 def setup_builtin_macros():
