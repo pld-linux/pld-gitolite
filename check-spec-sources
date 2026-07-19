@@ -1,0 +1,502 @@
+#!/usr/bin/python3 -u
+"""
+Gitolite server-side hook that enforces consistency between
+Source/Patch references in .spec files and actual files in the repository.
+
+Rules enforced:
+  - If a Source/Patch is ADDED (or its filename changed) in the spec,
+    the referenced file must be present in the repository or in the
+    dropin directory (/var/lib/dropin/dropin). URL-based entries are
+    exempt (they are fetched at build time). Push is rejected otherwise.
+  - If a Source/Patch is REMOVED from the spec, the referenced file
+    must also be removed in the same commit (but only if the file
+    actually existed in the repo before).
+  - If a file is deleted that is still referenced as Source/Patch
+    in the spec, the push is rejected.
+
+Exceptions (skipped):
+  - NoSource / NoPatch entries
+  - URL-based sources/patches (http://, https://, ftp://) — fetched
+    at build time, not stored in git
+
+Uses the Python rpm library for spec parsing, which handles all macro
+expansion natively (including nested macros, conditionals, %{lua:}, etc.).
+
+Shipped by the pld-gitolite package as a pre-receive.d drop-in:
+  .gitolite/hooks/common/pre-receive.d/check-spec-sources
+The pre-receive dispatcher feeds it stdin and propagates its exit status.
+
+Reads "oldrev newrev refname" lines from stdin (pre-receive interface).
+Exit 0 = accept, exit 1 = reject.
+"""
+
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+import rpm
+
+# Set to True to report problems without rejecting the push.
+DRY_RUN = False
+
+# Set to True to log all hook activity (for debugging).
+VERBOSE = True
+
+ZERO_SHA = "0" * 40
+
+# Directory where files can be placed for upload to distfiles.pld-linux.org.
+# Non-URL sources/patches not in git are accepted if found here.
+DROPIN_DIR = "/var/lib/dropin/dropin"
+
+
+def git(*args):
+    """Run a git command, return stdout or None on failure."""
+    result = subprocess.run(
+        ["git"] + list(args),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def git_show(rev, path):
+    """Get file content at a given revision."""
+    return git("show", f"{rev}:{path}")
+
+
+def git_ls_tree_names(rev):
+    """Return set of file paths in a tree."""
+    output = git("ls-tree", "-r", "--name-only", rev)
+    if not output or not output.strip():
+        return set()
+    return set(output.strip().split("\n"))
+
+
+def git_diff_name_status(old_rev, new_rev):
+    """Return list of (status_char, filepath) tuples for changes between revisions."""
+    if old_rev == ZERO_SHA:
+        output = git(
+            "diff-tree", "--no-commit-id", "-r", "--name-status", "--root", new_rev
+        )
+    else:
+        output = git("diff", "--name-status", old_rev, new_rev)
+    if not output or not output.strip():
+        return []
+    result = []
+    for line in output.strip().split("\n"):
+        if not line:
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 2:
+            status = parts[0][0]
+            filepath = parts[-1]  # for renames/copies, take the destination
+            result.append((status, filepath))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# RPM spec parsing via python-rpm
+# ---------------------------------------------------------------------------
+
+
+def is_url(value):
+    """Return True if value looks like a URL."""
+    return bool(re.match(r"(https?|ftp)://", value, re.IGNORECASE))
+
+
+def basename_of(path):
+    """Return the filename portion of a path or URL."""
+    return path.rsplit("/", 1)[-1] if "/" in path else path
+
+
+def add_parametric_macro(name):
+    """Define a parametric macro that consumes its arguments and expands to nothing."""
+    rpm.expandMacro(f"%define {name}() %{{nil}}")
+
+
+def setup_builtin_macros():
+    """
+    Pre-define macros that rpm-specdump defines to allow parsing specs
+    outside a full build environment. These cover common macros from
+    rpm-build and PLD-specific macro packages that may not be available
+    on the git server.
+    """
+    simple_macros = {
+        "patch": "%{nil}",
+        "include": "%{nil}",
+    }
+    # PLD-specific macros that expand to RPM tags (BuildRequires,
+    # Requires, etc.). Defined as parametric so they consume their
+    # arguments; otherwise arguments appear as orphaned text causing
+    # "Unknown tag" parse errors.
+    parametric_macros = [
+        # macros.java
+        "buildrequires_jdk",
+        # macros.python
+        "pyrequires_eq",
+        # macros.php
+        "__php_api_requires",
+        "requires_php_extension",
+        "requires_zend_extension",
+        "requires_php_pdo_module",
+        # macros.kernel
+        "buildrequires_kernel",
+        "requires_releq_kernel",
+        "requires_releq_kernel_up",
+        "requires_releq_kernel_smp",
+        # macros.xorg
+        "__xorg_abi_requires_ge",
+        "__xorg_abi_requires_lt",
+        "requires_xorg_xserver_extension",
+        "requires_xorg_xserver_xinput",
+        "requires_xorg_xserver_font",
+        "requires_xorg_xserver_videodrv",
+        # macros.erlang
+        "erlang_requires",
+        # macros.rust
+        "rust_req",
+        # macros.systemd
+        "systemd_requires",
+        "systemd_ordering",
+    ]
+    defined = []
+    for name, value in simple_macros.items():
+        # Only define if not already present.
+        if not rpm.expandMacro(f"%{{?{name}}}"):
+            rpm.addMacro(name, value)
+            defined.append(name)
+    for name in parametric_macros:
+        add_parametric_macro(name)
+        defined.append(name)
+    return defined
+
+
+def parse_spec_from_content(spec_content):
+    """
+    Parse a spec file from its text content using the rpm library.
+
+    Writes content to a temp file, parses with rpm.spec(), and returns
+    a dict mapping (kind, num) -> filename for each source/patch entry.
+
+    kind is 'source' or 'patch'.
+    Entries marked NoSource/NoPatch are excluded.
+    URL entries are excluded.
+
+    Handling of unknown macros:
+      1. Pre-define standard build macros (like rpm-specdump does) to
+         handle specs that use %patch, %include, etc. as directives.
+      2. If parsing still fails on "Unknown tag: %foo" (custom macros
+         like %buildrequires_jdk that expand to BuildRequires in the
+         build env), define the offending macro as %{nil} and retry
+         up to MAX_RETRIES times.
+
+    Returns:
+        dict of {('source'|'patch', int): str}  — the filename (basename)
+    """
+    MAX_RETRIES = 20
+    entries = {}
+    added_macros = []
+
+    builtin_macros = setup_builtin_macros()
+
+    fd, tmppath = tempfile.mkstemp(suffix=".spec")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(spec_content)
+
+        for attempt in range(MAX_RETRIES + 1):
+            rpm.setVerbosity(rpm.RPMLOG_ERR)
+            # Capture rpm error output to detect unknown tags.
+            old_stderr = os.dup(2)
+            stderr_r, stderr_w = os.pipe()
+            os.dup2(stderr_w, 2)
+            os.close(stderr_w)
+            try:
+                parsed = rpm.spec(tmppath)
+            except Exception:
+                parsed = None
+            finally:
+                os.dup2(old_stderr, 2)
+                os.close(old_stderr)
+                rpm.setVerbosity(rpm.RPMLOG_WARNING)
+
+            # Read captured stderr.
+            with os.fdopen(stderr_r, "r") as f:
+                stderr_output = f.read()
+
+            if parsed is not None:
+                break  # success
+
+            # Look for "Unknown tag: %macroname" in stderr and define
+            # the missing macro as parametric %{nil} so the line
+            # (including any arguments) becomes empty.
+            m = re.search(r"Unknown tag:\s*%(\w+)", stderr_output)
+            if m and attempt < MAX_RETRIES:
+                macro_name = m.group(1)
+                add_parametric_macro(macro_name)
+                added_macros.append(macro_name)
+                log(f"    defined missing macro %{{{macro_name}}} as %{{nil}}")
+                continue
+            else:
+                msg = stderr_output.strip() or "can't parse specfile"
+                print(
+                    f"WARNING: Could not parse spec with rpm library: {msg}",
+                    file=sys.stderr,
+                )
+                return None
+
+        for fullpath, num, flags in parsed.sources:
+            is_source = bool(flags & rpm.RPMBUILD_ISSOURCE)
+            is_patch = bool(flags & rpm.RPMBUILD_ISPATCH)
+            is_no = bool(flags & rpm.RPMBUILD_ISNO)
+
+            if is_no:
+                continue
+
+            if is_url(fullpath):
+                continue
+
+            kind = "source" if is_source else "patch" if is_patch else None
+            if kind is None:
+                continue
+
+            filename = basename_of(fullpath)
+            entries[(kind, num)] = filename
+
+    except Exception as e:
+        print(
+            f"WARNING: Could not parse spec with rpm library: {e}",
+            file=sys.stderr,
+        )
+        return None
+    finally:
+        # Clean up any macros we added so they don't leak to other specs.
+        for macro_name in added_macros + builtin_macros:
+            rpm.delMacro(macro_name)
+        os.unlink(tmppath)
+
+    return entries
+
+
+def find_spec_files(file_set):
+    """Return list of .spec files from a set of paths."""
+    return sorted(f for f in file_set if f.endswith(".spec"))
+
+
+# ---------------------------------------------------------------------------
+# Main logic
+# ---------------------------------------------------------------------------
+
+
+def check_ref(refname, old_rev, new_rev):
+    """
+    Validate a single ref update. Returns list of error strings (empty = OK).
+
+    Two phases:
+
+    Phase 1 — spec file was modified:
+      Compare old vs new spec to find added/changed/removed Source/Patch
+      entries. Verify that corresponding files were added or removed in
+      the same push.
+
+    Phase 2 — files were deleted but spec was NOT modified:
+      Parse the (unchanged) spec from the new tree and check whether any
+      of the deleted files are still referenced. This catches the case
+      where someone deletes a patch file but forgets to update the spec.
+      Skipped for specs already checked in phase 1 (they cover this).
+      If there is no spec file in the repo at all, this is a no-op.
+    """
+    errors = []
+
+    if new_rev == ZERO_SHA:
+        return errors  # branch deletion, nothing to check
+
+    if refname.startswith("refs/tags/"):
+        return errors  # tag push, nothing to check
+
+    changes = git_diff_name_status(old_rev, new_rev)
+    if not changes:
+        return errors
+
+    changed_files = {filepath for _, filepath in changes}
+    deleted_files = {filepath for status, filepath in changes if status == "D"}
+
+    new_tree_files = git_ls_tree_names(new_rev)
+    old_tree_files = git_ls_tree_names(old_rev) if old_rev != ZERO_SHA else set()
+
+    # Phase 1: check specs that were modified in this push.
+    changed_spec_files = find_spec_files(changed_files)
+    if changed_spec_files:
+        for spec_file in changed_spec_files:
+            log(f"  checking {spec_file}")
+            spec_errors = check_spec(
+                spec_file, old_rev, new_rev, old_tree_files, new_tree_files
+            )
+            errors.extend(spec_errors)
+    else:
+        log(f"  no spec files changed")
+
+    # Phase 2: if files were deleted, check that they aren't still
+    # referenced by an unchanged spec.
+    if deleted_files:
+        all_specs = find_spec_files(new_tree_files)
+        for spec_file in all_specs:
+            if spec_file in changed_spec_files:
+                continue  # already fully validated in phase 1
+            spec_content = git_show(new_rev, spec_file)
+            if spec_content is None:
+                continue
+            entries = parse_spec_from_content(spec_content)
+            if entries is None:
+                continue
+            referenced_files = set(entries.values())
+            for deleted in deleted_files:
+                if deleted in referenced_files:
+                    key = next(k for k, v in entries.items() if v == deleted)
+                    kind, num = key
+                    label = f"Source{num}" if kind == "source" else f"Patch{num}"
+                    errors.append(
+                        f"{label}: '{deleted}' is still referenced in "
+                        f"{spec_file} but was deleted. "
+                        f"Update the spec file in the same commit."
+                    )
+
+    return errors
+
+
+def check_spec(spec_file, old_rev, new_rev, old_tree_files, new_tree_files):
+    """
+    Check a modified spec file for source/patch consistency.
+
+    Compares the old and new versions of the spec to find:
+      - Added/changed entries: the referenced file must exist in the new tree
+        or in the dropin directory. URL entries are already excluded by
+        parse_spec_from_content().
+      - Removed entries: the old file must be deleted (but only if it existed
+        in the old tree — a source that was never committed can be freely
+        removed from the spec without deleting anything).
+    """
+    errors = []
+
+    new_spec_content = git_show(new_rev, spec_file)
+    if new_spec_content is None:
+        return errors  # spec was deleted, nothing to enforce
+
+    new_entries = parse_spec_from_content(new_spec_content)
+    if new_entries is None:
+        return errors  # rpm couldn't parse it, let push through
+
+    old_entries = {}
+    if old_rev != ZERO_SHA:
+        old_spec_content = git_show(old_rev, spec_file)
+        if old_spec_content:
+            old_entries = parse_spec_from_content(old_spec_content)
+            if old_entries is None:
+                old_entries = {}
+
+    # Added/changed: new entry not matching old -> file must exist in the
+    # new tree or in the dropin directory (for upload to distfiles).
+    # URL entries are already excluded by parse_spec_from_content().
+    for (kind, num), filename in new_entries.items():
+        old_filename = old_entries.get((kind, num))
+        if old_filename == filename:
+            continue  # unchanged
+
+        label = f"Source{num}" if kind == "source" else f"Patch{num}"
+        if filename not in new_tree_files:
+            dropin_path = os.path.join(DROPIN_DIR, filename)
+            if os.path.exists(dropin_path):
+                log(f"    {label}: '{filename}' found in dropin directory")
+                continue
+            errors.append(
+                f"{label}: '{filename}' added/changed in {spec_file} "
+                f"but the file is not present in the repository "
+                f"or in {DROPIN_DIR}."
+            )
+
+    # Removed: old entry gone from new spec -> file must be deleted
+    # (but only if it actually existed in the old tree).
+    new_filenames = set(new_entries.values())
+    for (kind, num), filename in old_entries.items():
+        new_filename = new_entries.get((kind, num))
+        if new_filename == filename:
+            continue  # still present with same filename
+
+        # The file may have been renumbered (e.g. Patch2 -> Patch1)
+        # but is still referenced under a different number.
+        if filename in new_filenames:
+            continue
+
+        if filename not in old_tree_files:
+            continue  # was never committed, nothing to delete
+
+        label = f"Source{num}" if kind == "source" else f"Patch{num}"
+        if filename in new_tree_files:
+            errors.append(
+                f"{label}: '{filename}' removed from {spec_file} "
+                f"but the file still exists in the repository. "
+                f"Remove the file in the same commit."
+            )
+
+    return errors
+
+
+def log(msg):
+    """Print a message to stderr if VERBOSE is enabled."""
+    if VERBOSE:
+        print(f"check-spec-sources: {msg}", file=sys.stderr)
+
+
+def main():
+    log("hook started")
+
+    # pre-receive hook: read "oldrev newrev refname" lines from stdin
+    refs = []
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) >= 3:
+            refs.append((parts[2], parts[0], parts[1]))
+
+    if not refs:
+        log("no refs received, exiting")
+        sys.exit(0)
+
+    all_errors = []
+    for refname, old_rev, new_rev in refs:
+        log(f"checking {refname} {old_rev[:12]}..{new_rev[:12]}")
+        ref_errors = check_ref(refname, old_rev, new_rev)
+        if ref_errors:
+            all_errors.extend(ref_errors)
+        else:
+            log(f"  OK")
+
+    log(f"done, {len(all_errors)} error(s)")
+
+    if all_errors:
+        mode = "DRY-RUN" if DRY_RUN else "PUSH REJECTED"
+        print("", file=sys.stderr)
+        print("=" * 70, file=sys.stderr)
+        print(
+            f" {mode}: Source/Patch consistency check failed",
+            file=sys.stderr,
+        )
+        print("=" * 70, file=sys.stderr)
+        for err in all_errors:
+            print(f"  * {err}", file=sys.stderr)
+        print("=" * 70, file=sys.stderr)
+        print("", file=sys.stderr)
+        sys.exit(0 if DRY_RUN else 1)
+
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

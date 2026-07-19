@@ -3,7 +3,7 @@ Summary:	Gitolite setup used by PLD
 Summary(pl.UTF-8):	Konfiguracja Gitolite wykorzystywana przez PLD
 Name:		pld-gitolite
 Version:	0.13.4
-Release:	3
+Release:	4
 License:	GPL v2
 Group:		Development/Building
 Source0:	https://github.com/draenog/gitolite-scripts/tarball/v%{version}/gitolite-scripts.tar.gz
@@ -14,6 +14,8 @@ Source3:	git.conf
 Source4:	gitweb.conf
 Source5:	pld-developers
 Source6:	crontab
+Source7:	pre-receive
+Source8:	check-spec-sources
 Patch0:		python.patch
 BuildRequires:	rpm-pythonprov
 BuildRequires:	rpmbuild(macros) >= 1.202
@@ -22,6 +24,7 @@ Requires:	git-core-slug
 Requires:	gitolite
 Requires:	perl-RPC-XML
 Requires:	python3-requests
+Requires:	python3-rpm
 Provides:	group(%{gituser})
 Provides:	user(%{gituser})
 Requires(postun):	/usr/sbin/groupdel
@@ -56,6 +59,9 @@ cp -p %{SOURCE1} %{SOURCE5} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/c
 cp -p %{SOURCE2} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite.rc
 cp -p %{SOURCE3} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitconfig
 cp -a hooks/* $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/hooks/common
+install -d $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/hooks/common/{pre-receive.d,pre-receive.python.d}
+cp -p %{SOURCE7} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/hooks/common/pre-receive
+cp -p %{SOURCE8} $RPM_BUILD_ROOT/home/services/%{gituser}/.gitolite/hooks/common/pre-receive.d/check-spec-sources
 cp -a adc $RPM_BUILD_ROOT/home/services/%{gituser}
 cp -a bin/* $RPM_BUILD_ROOT/home/services/%{gituser}/bin
 
@@ -100,6 +106,10 @@ fi
 %dir /home/services/%{gituser}/.gitolite/hooks
 %dir /home/services/%{gituser}/.gitolite/hooks/common
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/.gitolite/hooks/common/update.secondary
+%attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/.gitolite/hooks/common/pre-receive
+%dir /home/services/%{gituser}/.gitolite/hooks/common/pre-receive.d
+%attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/.gitolite/hooks/common/pre-receive.d/check-spec-sources
+%dir /home/services/%{gituser}/.gitolite/hooks/common/pre-receive.python.d
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/.gitolite/hooks/common/post-receive
 %dir /home/services/%{gituser}/.gitolite/hooks/common/post-receive.d
 %attr(744,%{gituser},%{gituser}) /home/services/%{gituser}/.gitolite/hooks/common/post-receive.d/setdescription.sh

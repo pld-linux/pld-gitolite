@@ -1,0 +1,45 @@
+#!/usr/bin/python3 -u
+
+# Copy of hooks/post-receive from the gitolite-scripts tarball (Source0), after
+# python.patch. Keep in sync when that hook changes.
+
+import glob
+import importlib.util
+import os
+import sys
+import subprocess
+
+
+def load_source(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+data = sys.stdin.readlines()
+
+if (os.path.isdir('hooks/pre-receive.d')):
+    for hook in sorted(os.listdir('hooks/pre-receive.d')):
+        hook = os.path.join('hooks/pre-receive.d', hook)
+        if (hook.endswith(('~','.bak','.rpmsave','.rpmnew')) or
+                not (os.path.isfile(hook) and os.access(hook, os.X_OK))):
+            continue
+        hook_process = subprocess.Popen([hook], stdin=subprocess.PIPE)
+        try:
+            for line in data:
+                hook_process.stdin.write(line.encode('utf-8'))
+        except IOError:
+            pass
+        hook_process.communicate()
+        # Unlike post-receive, a non-zero exit here is what rejects the
+        # push, so it must be propagated instead of ignored.
+        if hook_process.returncode != 0:
+            sys.exit(hook_process.returncode)
+
+for pluginfile in glob.glob('hooks/pre-receive.python.d/*.py'):
+    plugin = load_source(os.path.basename(pluginfile), pluginfile)
+    ret = plugin.run(data)
+    if ret:
+        sys.exit(ret)
